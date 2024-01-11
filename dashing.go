@@ -79,6 +79,7 @@ type Transform struct {
 	Replacement string
 	RequireText *regexp.Regexp // Require text matches the given regexp
 	MatchPath   *regexp.Regexp // Skip files that don't match this path
+	Remove      bool           // Remove field
 }
 
 var ignoreHash map[string]bool
@@ -127,10 +128,10 @@ func commands() []*cli.Command {
 			},
 		},
 		{
-			Name:      "init",
-			Aliases:   []string{"create"},
-			Usage:     "create a new template for building documentation",
-			Action:    create,
+			Name:    "init",
+			Aliases: []string{"create"},
+			Usage:   "create a new template for building documentation",
+			Action:  create,
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "config, f",
@@ -139,12 +140,12 @@ func commands() []*cli.Command {
 			},
 		},
 		{
-			Name:   "version",
-			Usage:  "Print version and exit.",
+			Name:  "version",
+			Usage: "Print version and exit.",
 			Action: func(c *cli.Context) error {
 				fmt.Println(version)
 				return nil
-		        },
+			},
 			Flags: []cli.Flag{
 				&cli.StringFlag{
 					Name:  "config, f",
@@ -565,6 +566,13 @@ func parseHTML(path string, source_depth int, dest string, dashing Dashing) ([]*
 			m := css.MustCompile(pattern)
 			found := m.MatchAll(top)
 			for _, n := range found {
+
+				// Check if the element should be removed
+				if sel.Remove {
+					n.Parent.RemoveChild(n) // Remove the element
+					continue
+				}
+
 				textString := text(n)
 				if sel.RequireText != nil && !sel.RequireText.MatchString(textString) {
 					fmt.Printf("Skipping entry for '%s' (Text not matching given regexp '%v')\n", textString, sel.RequireText)
@@ -643,7 +651,7 @@ func anchor(node *html.Node) string {
 	return tname
 }
 
-//autolink creates an A tag for when one is not present in original docs.
+// autolink creates an A tag for when one is not present in original docs.
 func autolink(target string) *html.Node {
 	return &html.Node{
 		Type:     html.ElementNode,
